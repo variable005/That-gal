@@ -26,12 +26,13 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
   isLoadingMore,
 }) => {
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-12 max-w-6xl mx-auto">
       {mediaList.map((media, idx) => {
         const title = media.title.english || media.title.romaji;
         const liked = isLiked(media.id);
         const saved = isSaved(media.id);
         const displayImage = media.bannerImage || media.coverImage.extraLarge;
+        const ambientColor = media.coverImage.color || '#3F3F46';
         const hasTrailer = media.trailer?.id && media.trailer.site === 'youtube';
 
         const metaString = [
@@ -44,24 +45,37 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
         return (
           <article
             key={media.id}
-            className="group relative rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-850 shadow-xl transition-all duration-300 hover:border-zinc-700"
+            className="group relative rounded-2xl overflow-hidden bg-[#070709] border border-zinc-900 shadow-2xl transition-all duration-300"
           >
-            {/* Full-Quality Panoramic Canvas */}
+            {/* Ambient Diffused Glow */}
             <div
-              className="relative w-full aspect-[16/7] sm:aspect-[21/9] overflow-hidden cursor-pointer bg-zinc-950"
+              className="absolute inset-0 opacity-15 filter blur-3xl pointer-events-none transition-all duration-700"
+              style={{ backgroundColor: ambientColor }}
+            />
+
+            {/* Blurred Backdrop */}
+            <img
+              src={displayImage}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover filter blur-3xl opacity-20 scale-105 pointer-events-none"
+            />
+
+            {/* Foreground Uncropped Artwork */}
+            <div
+              className="relative w-full aspect-[16/7] sm:aspect-[21/9] flex items-center justify-center p-2 sm:p-4 cursor-pointer"
               onClick={() => onInspect(media)}
             >
               <img
                 src={displayImage}
                 alt={title}
                 loading={idx < 2 ? undefined : 'lazy'}
-                className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.01]"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.01]"
               />
 
-              {/* Minimal Bottom Shadow for mono font readability */}
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+              {/* Minimal Bottom Shadow strictly for mono font legibility */}
+              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
 
-              {/* Minimal Small Mono Font in Bottom-Left Corner */}
+              {/* Bottom-Left Corner: Small Mono Font */}
               <div className="absolute bottom-4 left-4 sm:bottom-5 sm:left-5 z-10 pointer-events-none text-left space-y-0.5">
                 <h3 className="font-mono text-xs sm:text-sm font-medium text-zinc-100 tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {title}
@@ -71,17 +85,17 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
                 </p>
               </div>
 
-              {/* Micro-Actions in Bottom-Right Corner */}
-              <div className="absolute bottom-4 right-4 sm:bottom-5 sm:right-5 z-10 flex items-center gap-1.5 pointer-events-auto">
+              {/* Bottom-Right Corner: Glass Micro-Actions */}
+              <div className="absolute bottom-4 right-4 sm:bottom-5 sm:right-5 z-10 flex items-center gap-1.5 p-1 rounded-full bg-zinc-950/80 backdrop-blur-md border border-zinc-800/80 shadow-xl pointer-events-auto">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleLike(media);
                   }}
-                  className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
+                  className={`p-2 rounded-full transition-all ${
                     liked
-                      ? 'bg-rose-500/30 text-rose-300 border-rose-500/50'
-                      : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-rose-300 border-zinc-800/80'
+                      ? 'bg-rose-500/30 text-rose-300'
+                      : 'text-zinc-400 hover:text-rose-300 hover:bg-zinc-900'
                   }`}
                   title="Like"
                 >
@@ -93,10 +107,10 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
                     e.stopPropagation();
                     onToggleSave(media);
                   }}
-                  className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
+                  className={`p-2 rounded-full transition-all ${
                     saved
-                      ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
-                      : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-amber-300 border-zinc-800/80'
+                      ? 'bg-amber-500/30 text-amber-300'
+                      : 'text-zinc-400 hover:text-amber-300 hover:bg-zinc-900'
                   }`}
                   title="Collect"
                 >
@@ -109,10 +123,11 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
                       e.stopPropagation();
                       onInspect(media);
                     }}
-                    className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
-                    title="Watch Trailer"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 text-[10px] font-mono transition-all"
+                    title="Official PV"
                   >
-                    <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
+                    <Play className="w-3 h-3 fill-current text-amber-400" />
+                    <span>PV</span>
                   </button>
                 )}
 
@@ -121,8 +136,8 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
                     e.stopPropagation();
                     onInspect(media);
                   }}
-                  className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
-                  title="Expand"
+                  className="p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+                  title="Inspect"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
                 </button>
@@ -132,13 +147,13 @@ export const CinematicStream: React.FC<CinematicStreamProps> = ({
         );
       })}
 
-      {/* Load More Button */}
+      {/* Infinite Load Button */}
       {hasNextPage && (
         <div className="flex justify-center pt-4 pb-12">
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono border border-zinc-800 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 text-xs font-mono border border-zinc-800 transition-all disabled:opacity-50"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>{isLoadingMore ? 'Loading artwork...' : 'Load More Banners'}</span>

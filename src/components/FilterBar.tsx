@@ -1,5 +1,4 @@
 import React from 'react';
-import { Flame, Film, Trophy, Calendar, Gem } from 'lucide-react';
 import type { DiscoveryFilter } from '../api/types';
 
 interface FilterBarProps {
@@ -8,30 +7,29 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({ activeFilter, onSelectFilter }) => {
-  const filters: Array<{ id: DiscoveryFilter; label: string; icon: React.ReactNode }> = [
-    { id: 'trending', label: 'Trending', icon: <Flame className="w-3 h-3" /> },
-    { id: 'top_movies', label: 'Feature Films', icon: <Film className="w-3 h-3" /> },
-    { id: 'masterpieces', label: 'Masterpieces', icon: <Trophy className="w-3 h-3" /> },
-    { id: 'seasonal', label: 'Seasonal', icon: <Calendar className="w-3 h-3" /> },
-    { id: 'gems', label: 'Hidden Gems', icon: <Gem className="w-3 h-3" /> },
+  const filters: Array<{ id: DiscoveryFilter; label: string }> = [
+    { id: 'trending', label: 'Trending' },
+    { id: 'top_movies', label: 'Feature Films' },
+    { id: 'masterpieces', label: 'Masterpieces' },
+    { id: 'seasonal', label: 'Season' },
+    { id: 'gems', label: 'Hidden Gems' },
   ];
 
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none font-mono text-[11px]">
+    <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none font-mono text-[11px]">
       {filters.map((f) => {
         const isActive = activeFilter === f.id;
         return (
           <button
             key={f.id}
             onClick={() => onSelectFilter(f.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all border ${
+            className={`px-3 py-1 rounded-full whitespace-nowrap transition-all border ${
               isActive
-                ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-medium shadow-sm'
-                : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border-zinc-800/80 hover:border-zinc-700'
+                ? 'bg-zinc-800 text-zinc-100 border-zinc-700 font-medium'
+                : 'text-zinc-500 hover:text-zinc-300 border-transparent hover:border-zinc-800'
             }`}
           >
-            {f.icon}
-            <span>{f.label}</span>
+            {f.label}
           </button>
         );
       })}

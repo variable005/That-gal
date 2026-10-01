@@ -31,7 +31,7 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
     setIsImageLoaded(false);
   }, [currentIndex, viewMode]);
 
-  // Keyboard navigation
+  // Keyboard navigation: Left/Right arrows, Space, A/D, L for like, S for save, V for toggle view
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -57,8 +57,8 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
 
   if (!current) {
     return (
-      <div className="w-full h-[80vh] flex items-center justify-center bg-zinc-950 rounded-2xl border border-zinc-900">
-        <span className="text-[11px] text-zinc-500 font-mono">Loading cinematic artwork...</span>
+      <div className="w-full h-[85vh] flex items-center justify-center bg-[#070709] rounded-2xl border border-zinc-900">
+        <span className="text-xs text-zinc-500 font-mono tracking-widest uppercase">Loading artwork...</span>
       </div>
     );
   }
@@ -68,10 +68,9 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
   const saved = isSaved(current.id);
   const ambientColor = current.coverImage.color || '#3F3F46';
   
-  // High quality artwork selection
   const banner = current.bannerImage;
   const poster = current.coverImage.extraLarge;
-  const displayImage = viewMode === 'poster' || !banner ? poster : banner;
+  const activeImage = viewMode === 'poster' || !banner ? poster : banner;
   const hasTrailer = current.trailer?.id && current.trailer.site === 'youtube';
 
   const metaString = [
@@ -82,53 +81,54 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
   ].filter(Boolean).join(' • ');
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/80 shadow-2xl flex flex-col justify-between select-none">
+    <div className="relative w-full h-[82vh] sm:h-[86vh] rounded-2xl overflow-hidden bg-[#070709] border border-zinc-900 shadow-2xl flex items-center justify-center select-none group">
       
-      {/* Background Ambient Glow (Extremely subtle, behind artwork) */}
+      {/* Ambient Diffused Color Glow */}
       <div
-        className="absolute inset-0 opacity-15 filter blur-3xl transition-colors duration-1000 pointer-events-none"
+        className="absolute inset-0 opacity-20 filter blur-3xl pointer-events-none transition-all duration-1000"
         style={{ backgroundColor: ambientColor }}
       />
 
-      {/* Main Full-Quality Image Canvas */}
-      <div 
-        className={`relative w-full overflow-hidden bg-zinc-950 flex items-center justify-center transition-all ${
-          viewMode === 'poster' 
-            ? 'h-[75vh] sm:h-[84vh]' 
-            : 'h-[65vh] sm:h-[78vh] lg:h-[84vh]'
-        }`}
-      >
+      {/* Ambient Blurred Artwork Backdrop (prevents dead space while keeping foreground 100% uncropped) */}
+      <img
+        key={`backdrop-${current.id}-${viewMode}`}
+        src={activeImage}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover filter blur-3xl opacity-20 scale-110 pointer-events-none transition-opacity duration-700"
+      />
+
+      {/* Foreground Uncropped Artwork Hero */}
+      <div className="relative z-10 w-full h-full flex items-center justify-center p-3 sm:p-6 md:p-8">
         {!isImageLoaded && (
-          <div className="absolute inset-0 bg-zinc-950/80 animate-pulse" />
+          <div className="absolute inset-8 rounded-xl bg-zinc-950/60 animate-pulse pointer-events-none" />
         )}
-        
         <img
-          key={`${current.id}-${viewMode}`}
-          src={displayImage}
+          key={`hero-${current.id}-${viewMode}`}
+          src={activeImage}
           alt={title}
           onLoad={() => setIsImageLoaded(true)}
-          className={`w-full h-full object-center transition-opacity duration-500 ${
-            viewMode === 'poster' ? 'object-contain' : 'object-cover'
-          } ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`max-w-full max-h-full object-contain rounded-xl shadow-2xl drop-shadow-[0_20px_40px_rgba(0,0,0,0.85)] transition-all duration-500 ${
+            isImageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'
+          }`}
         />
-
-        {/* Minimal Bottom Shadow strictly for small mono font legibility - leaves 90% of image 100% untouched */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
       </div>
 
-      {/* Top Bar: Minimal Index Counter & View Mode Switcher */}
+      {/* Soft Vignette strictly at the very bottom edge for text legibility */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none z-10" />
+
+      {/* Top HUD: Index & Banner/Poster Switcher */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-auto">
-        <div className="font-mono text-[10px] text-zinc-400 bg-zinc-950/70 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-800/80">
+        <div className="font-mono text-[11px] text-zinc-400 bg-zinc-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-zinc-800/80 shadow">
           <span>{String(currentIndex + 1).padStart(2, '0')} / {String(mediaList.length).padStart(2, '0')}</span>
         </div>
 
         {banner && (
-          <div className="flex items-center gap-1 bg-zinc-950/70 backdrop-blur-md p-0.5 rounded-md border border-zinc-800/80 font-mono text-[10px]">
+          <div className="flex items-center bg-zinc-950/80 backdrop-blur-md p-0.5 rounded-full border border-zinc-800/80 font-mono text-[10px] shadow">
             <button
               onClick={() => setViewMode('banner')}
-              className={`px-2 py-0.5 rounded transition-colors ${
+              className={`px-3 py-0.5 rounded-full transition-all ${
                 viewMode === 'banner'
-                  ? 'bg-zinc-800 text-zinc-100'
+                  ? 'bg-zinc-100 text-zinc-950 font-medium'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -136,9 +136,9 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
             </button>
             <button
               onClick={() => setViewMode('poster')}
-              className={`px-2 py-0.5 rounded transition-colors ${
+              className={`px-3 py-0.5 rounded-full transition-all ${
                 viewMode === 'poster'
-                  ? 'bg-zinc-800 text-zinc-100'
+                  ? 'bg-zinc-100 text-zinc-950 font-medium'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -148,58 +148,60 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
         )}
       </div>
 
-      {/* Center Left/Right Arrow Navigators */}
-      <div className="absolute inset-y-0 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
-        <button
-          onClick={() => {
-            if (currentIndex > 0) onIndexChange(currentIndex - 1);
-          }}
-          disabled={currentIndex === 0}
-          className="p-2.5 rounded-full bg-zinc-950/60 hover:bg-zinc-900/90 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 disabled:opacity-0 pointer-events-auto transition-all shadow-lg"
-          title="Previous (Left Arrow)"
-          aria-label="Previous Artwork"
-        >
+      {/* Clickable Nav Zones (Left 15% and Right 15%) with subtle hover chevrons */}
+      <div 
+        onClick={() => {
+          if (currentIndex > 0) onIndexChange(currentIndex - 1);
+        }}
+        className={`absolute inset-y-0 left-0 w-20 sm:w-28 z-20 flex items-center justify-start pl-4 cursor-pointer transition-opacity ${
+          currentIndex === 0 ? 'pointer-events-none opacity-0' : 'opacity-0 group-hover:opacity-100'
+        }`}
+        title="Previous (←)"
+      >
+        <div className="p-2.5 rounded-full bg-zinc-950/80 backdrop-blur-md text-zinc-300 hover:text-white border border-zinc-800 shadow-xl transition-all">
           <ChevronLeft className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={() => {
-            if (currentIndex < mediaList.length - 1) onIndexChange(currentIndex + 1);
-          }}
-          disabled={currentIndex === mediaList.length - 1}
-          className="p-2.5 rounded-full bg-zinc-950/60 hover:bg-zinc-900/90 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 disabled:opacity-0 pointer-events-auto transition-all shadow-lg"
-          title="Next (Right Arrow or Space)"
-          aria-label="Next Artwork"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        </div>
       </div>
 
-      {/* Bottom Area: Small Mono Font in Left Corner + Subtle Micro-Buttons in Right Corner */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 flex items-end justify-between gap-4 pointer-events-none">
+      <div 
+        onClick={() => {
+          if (currentIndex < mediaList.length - 1) onIndexChange(currentIndex + 1);
+        }}
+        className={`absolute inset-y-0 right-0 w-20 sm:w-28 z-20 flex items-center justify-end pr-4 cursor-pointer transition-opacity ${
+          currentIndex === mediaList.length - 1 ? 'pointer-events-none opacity-0' : 'opacity-0 group-hover:opacity-100'
+        }`}
+        title="Next (→ / Space)"
+      >
+        <div className="p-2.5 rounded-full bg-zinc-950/80 backdrop-blur-md text-zinc-300 hover:text-white border border-zinc-800 shadow-xl transition-all">
+          <ChevronRight className="w-5 h-5" />
+        </div>
+      </div>
+
+      {/* Bottom HUD: Small Mono Font in Left Corner + Micro-Action Dock in Right Corner */}
+      <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6 sm:right-6 z-20 flex items-end justify-between gap-4 pointer-events-none">
         
-        {/* Left Corner: Clean Small Mono Font as Requested */}
+        {/* Left Corner: Small Mono Font */}
         <div className="pointer-events-auto space-y-0.5 text-left max-w-lg">
-          <h2
+          <h1
             onClick={() => onInspect(current)}
-            className="font-mono text-xs sm:text-sm font-medium text-zinc-100 tracking-tight cursor-pointer hover:text-amber-300 transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+            className="font-mono text-sm sm:text-base font-medium text-zinc-100 tracking-tight cursor-pointer hover:text-amber-200 transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
           >
             {title}
-          </h2>
+          </h1>
           <p className="font-mono text-[10px] sm:text-[11px] text-zinc-400 tracking-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
             {metaString}
           </p>
         </div>
 
-        {/* Right Corner: Minimal Micro-Control Icons */}
-        <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
+        {/* Right Corner: Glass Action Pill */}
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-zinc-950/80 backdrop-blur-md border border-zinc-800/80 shadow-2xl pointer-events-auto">
           {/* Like */}
           <button
             onClick={() => onToggleLike(current)}
-            className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
+            className={`p-2 rounded-full transition-all ${
               liked
-                ? 'bg-rose-500/30 text-rose-300 border-rose-500/50'
-                : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-rose-300 border-zinc-800/80'
+                ? 'bg-rose-500/30 text-rose-300'
+                : 'text-zinc-400 hover:text-rose-300 hover:bg-zinc-900'
             }`}
             title="Like (L)"
           >
@@ -209,59 +211,38 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
           {/* Collect */}
           <button
             onClick={() => onToggleSave(current)}
-            className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
+            className={`p-2 rounded-full transition-all ${
               saved
-                ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
-                : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-amber-300 border-zinc-800/80'
+                ? 'bg-amber-500/30 text-amber-300'
+                : 'text-zinc-400 hover:text-amber-300 hover:bg-zinc-900'
             }`}
             title="Collect to Vault (S)"
           >
             <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-current text-amber-400' : ''}`} />
           </button>
 
-          {/* Trailer */}
+          {/* Official PV Trailer */}
           {hasTrailer && (
             <button
               onClick={() => onInspect(current)}
-              className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 text-[10px] font-mono transition-all"
               title="Official Trailer"
             >
-              <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
+              <Play className="w-3 h-3 fill-current text-amber-400" />
+              <span>PV</span>
             </button>
           )}
 
-          {/* Full Lightbox */}
+          {/* Lightbox */}
           <button
             onClick={() => onInspect(current)}
-            className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
-            title="Inspect Full Image"
+            className="p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+            title="Inspect Artwork"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
-      </div>
-
-      {/* Sleek Filmstrip Dock below the artwork */}
-      <div className="px-4 py-2 bg-zinc-950 border-t border-zinc-900 flex items-center gap-2 overflow-x-auto scrollbar-none">
-        {mediaList.map((m, idx) => {
-          const isSelected = idx === currentIndex;
-          const thumb = m.bannerImage || m.coverImage.large;
-          return (
-            <button
-              key={m.id}
-              onClick={() => onIndexChange(idx)}
-              className={`relative h-10 w-16 sm:w-20 rounded overflow-hidden shrink-0 border transition-all duration-150 ${
-                isSelected
-                  ? 'border-amber-400 opacity-100 scale-105'
-                  : 'border-zinc-800/60 opacity-40 hover:opacity-80'
-              }`}
-              title={m.title.english || m.title.romaji}
-            >
-              <img src={thumb} alt="" className="w-full h-full object-cover object-center" />
-            </button>
-          );
-        })}
       </div>
 
     </div>
