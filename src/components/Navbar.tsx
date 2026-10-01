@@ -1,111 +1,118 @@
 import React from 'react';
-import { Compass, Sparkles, Bookmark, HeartHandshake, Settings, ShieldCheck } from 'lucide-react';
+import { Compass, Bookmark, Sparkles, Settings, Search, Film } from 'lucide-react';
 
-export type NavTab = 'for_you' | 'explore' | 'saved' | 'taste' | 'settings';
+export type MainTab = 'discovery' | 'watchlist' | 'taste' | 'settings';
 
 interface NavbarProps {
-  activeTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
-  savedCount: number;
+  activeTab: MainTab;
+  onSelectTab: (tab: MainTab) => void;
+  watchlistCount: number;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, savedCount }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  onSelectTab,
+  watchlistCount,
+  searchQuery,
+  onSearchChange,
+}) => {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-atlas-border bg-atlas-bg/90 backdrop-blur-md transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md transition-all">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* Brand & Editorial Title */}
-        <div className="flex items-center gap-4 cursor-pointer" onClick={() => onSelectTab('for_you')}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-atlas-accent to-purple-400 flex items-center justify-center shadow-accent text-atlas-bg font-serif font-bold text-lg select-none">
-            TG
+        <div 
+          className="flex items-center gap-3 cursor-pointer shrink-0" 
+          onClick={() => onSelectTab('discovery')}
+        >
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-200 flex items-center justify-center text-zinc-950 shadow-md">
+            <Film className="w-4 h-4 stroke-[2.5]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-serif tracking-wider text-xl font-medium text-atlas-text">
+              <span className="font-serif tracking-tight text-lg font-medium text-zinc-100">
                 That Gal
               </span>
-              <span className="text-[10px] uppercase font-mono tracking-widest px-1.5 py-0.5 rounded bg-atlas-elevated text-atlas-muted border border-atlas-border">
-                Atlas
+              <span className="text-[10px] uppercase font-mono tracking-widest px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                Cinema
               </span>
             </div>
-            <p className="text-[11px] text-atlas-muted font-sans hidden sm:block">
-              Adaptive Anime Art Discovery
+            <p className="text-[10px] text-zinc-400 font-sans hidden sm:block">
+              Visual Anime Discovery
             </p>
           </div>
         </div>
 
+        {/* Global Search Bar */}
+        <div className="flex-1 max-w-md mx-2 hidden md:block">
+          <div className="relative">
+            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search anime, movies, studios (e.g. Frieren, Ghibli)..."
+              className="w-full bg-zinc-900/80 text-zinc-200 placeholder-zinc-500 text-xs rounded-lg pl-9 pr-4 py-2 border border-zinc-800 focus:outline-none focus:border-zinc-700 transition-colors"
+            />
+          </div>
+        </div>
+
         {/* Primary Navigation Tabs */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
-            onClick={() => onSelectTab('for_you')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'for_you'
-                ? 'bg-atlas-elevated text-atlas-accent border border-atlas-accent/30 shadow-sm'
-                : 'text-atlas-muted hover:text-atlas-text hover:bg-atlas-surface'
+            onClick={() => onSelectTab('discovery')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'discovery'
+                ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>For You</span>
+            <Compass className="w-3.5 h-3.5" />
+            <span>Discover</span>
           </button>
 
           <button
-            onClick={() => onSelectTab('explore')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'explore'
-                ? 'bg-atlas-elevated text-atlas-accent border border-atlas-accent/30 shadow-sm'
-                : 'text-atlas-muted hover:text-atlas-text hover:bg-atlas-surface'
+            onClick={() => onSelectTab('watchlist')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all relative ${
+              activeTab === 'watchlist'
+                ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Compass className="w-4 h-4" />
-            <span className="hidden sm:inline">Explore</span>
-          </button>
-
-          <button
-            onClick={() => onSelectTab('saved')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all relative ${
-              activeTab === 'saved'
-                ? 'bg-atlas-elevated text-atlas-accent border border-atlas-accent/30 shadow-sm'
-                : 'text-atlas-muted hover:text-atlas-text hover:bg-atlas-surface'
-            }`}
-          >
-            <Bookmark className="w-4 h-4" />
-            <span className="hidden sm:inline">Saved</span>
-            {savedCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-mono rounded-full bg-atlas-accent text-atlas-bg font-semibold">
-                {savedCount}
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>Watchlist</span>
+            {watchlistCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 text-[10px] font-mono rounded-full bg-amber-400/20 text-amber-300 font-semibold border border-amber-400/30">
+                {watchlistCount}
               </span>
             )}
           </button>
 
           <button
             onClick={() => onSelectTab('taste')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'taste'
-                ? 'bg-atlas-elevated text-atlas-accent border border-atlas-accent/30 shadow-sm'
-                : 'text-atlas-muted hover:text-atlas-text hover:bg-atlas-surface'
+                ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <HeartHandshake className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Your Taste</span>
           </button>
 
           <button
             onClick={() => onSelectTab('settings')}
-            className={`p-2 rounded-lg text-atlas-muted hover:text-atlas-text hover:bg-atlas-surface transition-all ${
-              activeTab === 'settings' ? 'text-atlas-accent bg-atlas-elevated' : ''
+            className={`p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-all ${
+              activeTab === 'settings' ? 'text-zinc-100 bg-zinc-800' : ''
             }`}
-            title="Engine Settings & Privacy"
+            title="Settings & Data"
             aria-label="Settings"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-3.5 h-3.5" />
           </button>
         </nav>
-
-        {/* Safe Rating Verification Pill */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-xs font-mono">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Safe (All-Ages)</span>
-        </div>
 
       </div>
     </header>

@@ -1,93 +1,97 @@
-# That Gal (Dream Atlas) — Adaptive Anime Art Discovery Engine
+# That Gal - Cinematic Anime Discovery and Watchlist Engine
 
-> An intelligent, visual art publication powered by the Danbooru API. It continuously discovers artwork you might appreciate, learns from your aesthetic interactions, and refines recommendations over time.
-
----
-
-## 1. Product Philosophy
-
-Most anime art platforms are search engines where users must formulate precise queries to find what they want. **That Gal (Dream Atlas)** flips this paradigm:
-
-- **Serendipity Over Searching**: Opening the platform feels like opening an editorial art magazine curated specifically for you.
-- **Continuous Adaptation**: Rather than requiring onboarding forms or questionnaires, the engine observes natural browsing signals (likes, bookmarks, detail inspections, and dislikes) to build an evolving taste profile.
-- **Exploration & Novelty**: Avoids filter bubbles and echo chambers by balancing familiar tastes with adjacent discoveries (new artists, related franchises) and calculated wildcards.
-- **Artwork-First Presentation**: A dark editorial aesthetic with minimal chrome, respectful typography, and fluid responsive masonry layouts that emphasize the artwork.
+An editorial anime discovery platform where visual craft is the primary interface. Instead of text-dense databases and microscopic thumbnails, That Gal treats official high-resolution key visual posters and widescreen banner art as the core decision-making vector for curating a personal watchlist.
 
 ---
 
-## 2. Architecture & Danbooru API Integration
+## 1. Product Philosophy and Design Intent
 
-The application operates as a high-performance, local-first client built on top of the official Danbooru REST API specification (`/posts.json` and `/tags.json`).
+### Visual Craft as the Primary Vector
+Traditional anime databases require users to search through complex text taxonomies and low-resolution thumbnails. That Gal reverses this interaction model:
+- Artwork is presented edge-to-edge in its native aspect ratio.
+- High-definition official posters and panoramic concept art banners serve as the primary discovery medium.
+- Users evaluate titles based on visual direction, character designs, and animation studio aesthetics.
 
-### API Pipeline & Endpoints
+### Rejection of Algorithmic Echo Chambers
+A common failure of recommendation engines is trapping users in narrow loops of identical titles. That Gal balances:
+- 60 percent demonstrated affinity: Matching demonstrated preferences for studios, genres, and formats.
+- 25 percent adjacent discovery: Introducing related animation directors, neighboring aesthetics, and studio lineages.
+- 15 percent critical wildcards: Introducing acclaimed masterpieces and feature films outside established clusters.
 
-- **Live Danbooru REST API**: Primary target is `https://danbooru.donmai.us/posts.json`.
-- **Danbooru Testbooru Mirror**: Secondary target is `https://testbooru.donmai.us/posts.json`, ensuring continuous feed operation even when Cloudflare automated challenge protection triggers on unauthenticated IP traffic.
-- **Vite Development Proxy**: Configured via `vite.config.ts` to seamlessly proxy `/api/danbooru/*` and `/api/testbooru/*` requests with custom `User-Agent` headers, resolving browser Cross-Origin Resource Sharing (CORS) constraints without external dependencies.
-- **Client In-Memory Cache**: 5-minute TTL cache layer prevents redundant network requests and enforces polite rate limiting conforming to Danbooru's 10 requests/second policy.
+### Restrained Editorial Aesthetics
+The interface intentionally avoids artificial gradients, decorative cards, and generic interface trends. It employs deep obsidian tones, clean typographical contrast between editorial serifs and monospace data points, and ambient illumination derived directly from the official artwork's dominant color.
 
-### Data Attributes Utilized
+---
 
-| Field | Source Type | Usage in Discovery Engine |
+## 2. API Architecture and Data Contracts
+
+The application interfaces directly with the public AniList GraphQL endpoint (https://graphql.anilist.co) with zero client-side authentication or API keys required.
+
+### Core Query Attributes
+
+| Field | Type | Purpose in Engine |
 | :--- | :--- | :--- |
-| `id` | `integer` | Unique post identifier, deduplication, and direct post link. |
-| `rating` | `string` (`g`, `s`, `q`, `e`) | Content safety verification. Only `g` is permitted. |
-| `tag_string_artist` | `string` | Primary artist credit, artist affinity weighting. |
-| `tag_string_character` | `string` | Character recognition, character affinity weighting. |
-| `tag_string_copyright` | `string` | Franchise and series correlation. |
-| `tag_string_general` | `string` | Visual motifs, thematic descriptors, aesthetic vectors. |
-| `media_asset.variants` | `array` | Optimal multi-resolution image selection (`180x180`, `720x720`, `original`). |
-| `score` & `fav_count` | `integer` | Quality indicators and popularity baselines. |
+| id | Integer | Unique identifier for deduplication and local state indexing. |
+| title | Object (english, romaji, native) | International and native title display. |
+| coverImage.extraLarge | String URL | Full-resolution key visual poster (up to 1400px height). |
+| bannerImage | String URL | Panoramic widescreen concept art (1920x400px). |
+| coverImage.color | String Hex | Extracted dominant color used for card lighting. |
+| format | Enum (TV, MOVIE, OVA, SPECIAL) | Format categorization and format-affinity weighting. |
+| studios.nodes | Array of Objects | Studio attribution for director and production affinity. |
+| genres and tags | Array of Strings | Categorical and thematic descriptor mapping. |
+| averageScore | Integer | Reception score used as a baseline quality heuristic. |
+| trailer | Object (id, site) | Embedded official promotional previews. |
 
 ---
 
-## 3. Content Safety Filter (100% All-Ages Verified)
+## 3. Recommendation and Taste Modeling Engine
 
-Safety is not treated as an optional UI toggle; it is enforced as a structural invariant at the centralized API boundary:
-
-1. **Query-Level Enforcement**: Every outbound request automatically injects `rating:g` into the query string (`tags=rating:g ...`). Conflicting or explicit rating tags (`rating:e`, `rating:q`, `rating:s`) are stripped before transmission.
-2. **Response-Level Verification**: All incoming posts pass through `isPostConfirmedSafe()` before entering the feed state. Any post with an unverified rating, missing asset, or non-`g` rating is rejected.
-3. **Immutability**: UI components cannot override or circumvent safety policies.
-
----
-
-## 4. Recommendation Engine (System Overview)
-
-The recommendation pipeline operates through five deterministic stages:
-
-```
-[ Danbooru Candidate Pool ]
-           │
-           ▼
-[ Centralized Safety Filter ]  ── (Rejects non-'g', banned, or deleted posts)
-           │
-           ▼
-[ Preference Match Scoring ]  ── (Calculates artist, character, and motif weights)
-           │
-           ▼
-[ Diversity & Novelty Pass ]   ── (Penalizes over-represented artists/tags)
-           │
-           ▼
-[ Re-ranked Feed Assembly ]    ── (60% Familiar, 25% Adjacent, 15% Wildcards)
-```
+The recommendation pipeline evaluates candidates through a deterministic scoring matrix:
 
 ### Signal Weights
 
-- **Explicit Like**: `+3.0`
-- **Save to Gallery**: `+5.0`
-- **Inspect Details**: `+0.5`
-- **Explicit Dislike**: `-5.0` (with strict negative penalty filter)
-- **Seen Post History**: Repetition penalty prevents duplicate exposures.
+```
+Action                     Affinity Multiplier
+------------------------------------------------
+Add to Watchlist           +5.0 (Genres, Tags, Formats)
+Mark as Favorite           +8.0 (Studio +1.6x, Genres +1.0x)
+Inspect Artwork / Trailer  +1.2 (Subtle interest signal)
+Explicit Dismissal         -6.0 (Heavy studio and genre penalty)
+```
+
+### Candidate Scoring Formula
+
+```
+Score(title) = 
+    Sum(GenreAffinity * w_genre) +
+    Sum(StudioAffinity * 1.6) +
+    Sum(TagAffinity * 0.9) +
+    (FormatAffinity * 0.8) +
+    (AverageScore / 10.0)
+```
+
+Titles explicitly dismissed by the user are immediately assigned a score of -9999 and removed from candidate pools.
+
+### Diversity and Cluster Prevention
+When multiple titles from the same production studio appear in succession, a soft penalty threshold defers redundant titles to later positions in the discovery stream, ensuring diverse visual discovery.
+
+### Explainable Recommendations
+Every ranked title generates a data-driven justification based on the highest weighted contributor, for example:
+- "Features artwork from Kyoto Animation, one of your preferred studios"
+- "Critically acclaimed Cyberpunk film matching your tastes"
+- "Recommended based on your affinity for Psychological Thrillers"
 
 ---
 
-## 5. Visual Design System
+## 4. Local-First Storage Architecture
 
-- **Palette**: Editorial dark mode (`#0B0B0D` canvas, `#151518` primary surface, `#202024` elevated cards, `#C7A6FF` restrained lavender accent).
-- **Typography**: Editorial serif (*Newsreader*) for titles, clean geometric sans (*Inter*) for interface controls, and monospace (*JetBrains Mono*) for technical metadata.
-- **Layout**: Dynamic multi-column responsive masonry preserving native artwork aspect ratios with progressive image loading.
-- **Web Guidance Compliant**: Adheres to modern web performance standards, using `fetchpriority="high"` for LCP candidates and native `loading="lazy"` for below-the-fold artwork.
+The application adheres strictly to a local-first paradigm. All data resides on the client device inside browser storage:
+
+- that_gal_watchlist_v1: Normalized dictionary containing watchlist entries, watching status, and favorite flags.
+- that_gal_taste_profile_v1: Numeric affinity weights, dismissed title IDs, and history registers.
+
+The system includes JSON backup export and import mechanisms, enabling library portability without cloud dependency.
 
 ---
 
-A project by Hariom Sharnam
+A project by var

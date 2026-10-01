@@ -1,110 +1,82 @@
 /**
- * Danbooru & Safe Booru API Data Types and Safe Post Models
+ * Core Data Models for That Gal - Cinematic Anime Discovery & Watchlist Engine
  */
 
-export type DanbooruRating = 'g' | 's' | 'q' | 'e' | 'safe';
+export type MediaFormat = 'TV' | 'MOVIE' | 'OVA' | 'ONA' | 'SPECIAL';
 
-export interface DanbooruMediaVariant {
-  type: string;
-  url: string;
-  width: number;
-  height: number;
-  file_ext: string;
+export type WatchlistStatus = 'plan_to_watch' | 'watching' | 'completed' | 'dropped';
+
+export interface AnimeTitle {
+  english: string | null;
+  romaji: string;
+  native: string | null;
 }
 
-export interface DanbooruMediaAsset {
-  id?: number;
-  md5?: string;
-  file_ext?: string;
-  file_size?: number;
-  image_width?: number;
-  image_height?: number;
-  variants?: DanbooruMediaVariant[];
+export interface AnimeCoverImage {
+  extraLarge: string;
+  large: string;
+  color: string | null;
 }
 
-export interface RawDanbooruPost {
+export interface AnimeStudio {
+  name: string;
+  isMain: boolean;
+}
+
+export interface AnimeTag {
+  name: string;
+  rank: number; // 0 - 100 percentage relevance
+  isMediaSpoiler?: boolean;
+}
+
+export interface AnimeTrailer {
+  id: string | null;
+  site: string | null;
+  thumbnail?: string | null;
+}
+
+export interface AnimeMedia {
   id: number;
-  created_at?: string;
-  updated_at?: string;
-  up_score?: number;
-  down_score?: number;
-  score?: number;
-  source?: string | null;
-  md5?: string;
-  rating?: string | null;
-  is_pending?: boolean;
-  is_flagged?: boolean;
-  is_deleted?: boolean;
-  is_banned?: boolean;
-  uploader_id?: number;
-  approver_id?: number | null;
-  fav_count?: number;
-  tag_string?: string;
-  tag_count?: number;
-  tag_count_general?: number;
-  tag_count_artist?: number;
-  tag_count_copyright?: number;
-  tag_count_character?: number;
-  tag_count_meta?: number;
-  file_ext?: string;
-  file_size?: number;
-  image_width?: number;
-  image_height?: number;
-  parent_id?: number | null;
-  has_children?: boolean;
-  pixiv_id?: number | null;
-  media_asset?: DanbooruMediaAsset | null;
-  tag_string_general?: string;
-  tag_string_character?: string;
-  tag_string_copyright?: string;
-  tag_string_artist?: string;
-  tag_string_meta?: string;
-  file_url?: string | null;
-  large_file_url?: string | null;
-  preview_file_url?: string | null;
+  title: AnimeTitle;
+  coverImage: AnimeCoverImage;
+  bannerImage: string | null;
+  format: MediaFormat;
+  episodes: number | null;
+  duration: number | null; // minutes per episode / runtime
+  status: string;
+  seasonYear: number | null;
+  season: string | null;
+  genres: string[];
+  studios: string[];
+  tags: string[];
+  averageScore: number | null; // e.g. 85 for 8.5/10
+  popularity: number;
+  description: string | null;
+  trailer: AnimeTrailer | null;
+  siteUrl: string;
 
-  // Safebooru schema compatibility fields
-  tags?: string;
-  sample_url?: string;
-  preview_url?: string;
-  width?: number;
-  height?: number;
+  // Recommendation engine metadata
+  recommendationReason?: string;
+  matchScore?: number;
 }
 
-/**
- * Normalized and validated post that is guaranteed safe for all audiences
- */
-export interface SafePost {
-  id: number;
-  rating: 'g';
-  createdAt: string;
-  score: number;
-  favCount: number;
-  width: number;
-  height: number;
-  aspectRatio: number;
-  sourceUrl: string | null;
-  danbooruPostUrl: string;
-  imageUrl: string;
-  previewUrl: string;
-  largeImageUrl: string;
-  
-  // Categorized tags
-  allTags: string[];
-  artistTags: string[];
-  characterTags: string[];
-  copyrightTags: string[];
-  generalTags: string[];
-  metaTags: string[];
-
-  // Additional display metadata
-  primaryArtist: string;
-  primaryCharacter: string | null;
-  primaryFranchise: string | null;
+export interface WatchlistEntry {
+  media: AnimeMedia;
+  status: WatchlistStatus;
+  isFavorite: boolean;
+  addedAt: number;
+  updatedAt: number;
+  userRating?: number; // 1-10
 }
 
-export interface DanbooruQueryParams {
-  tags?: string;
-  page?: number | string;
-  limit?: number;
+export interface UserTasteProfile {
+  genreWeights: Record<string, number>;
+  studioWeights: Record<string, number>;
+  formatWeights: Record<string, number>;
+  tagWeights: Record<string, number>;
+  dislikedIds: number[];
+  seenIds: number[];
+  lastUpdated: number;
 }
+
+export type DiscoveryFilter = 'trending' | 'top_movies' | 'masterpieces' | 'seasonal' | 'gems' | 'all';
