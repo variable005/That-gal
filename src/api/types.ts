@@ -1,8 +1,8 @@
 /**
- * Danbooru API Data Types and Safe Post Models
+ * Danbooru & Safe Booru API Data Types and Safe Post Models
  */
 
-export type DanbooruRating = 'g' | 's' | 'q' | 'e';
+export type DanbooruRating = 'g' | 's' | 'q' | 'e' | 'safe';
 
 export interface DanbooruMediaVariant {
   type: string;
@@ -62,6 +62,13 @@ export interface RawDanbooruPost {
   file_url?: string | null;
   large_file_url?: string | null;
   preview_file_url?: string | null;
+
+  // Safebooru schema compatibility fields
+  tags?: string;
+  sample_url?: string;
+  preview_url?: string;
+  width?: number;
+  height?: number;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { enforceSafeQueryTags, isPostConfirmedSafe, normalizeSafePost } from './safety';
+import { INITIAL_SAFE_ART_SEED } from './seedData';
 import type { DanbooruQueryParams, RawDanbooruPost, SafePost } from './types';
 
 export interface ApiClientConfig {
@@ -50,7 +51,8 @@ export class DanbooruApiClient {
 
   /**
    * Fetches posts with safe rating guaranteed.
-   * Automatically falls back to testbooru if Danbooru main is protected by Cloudflare.
+   * Cascades: Danbooru -> Testbooru -> Safebooru -> Seed Fallback.
+   * Guarantees that the discovery feed never encounters a blank screen.
    */
   public async fetchPosts(
     params: DanbooruQueryParams = {},
@@ -58,12 +60,11 @@ export class DanbooruApiClient {
   ): Promise<FetchPostsResult> {
     const limit = Math.min(Math.max(params.limit || 24, 1), 100);
     const page = params.page || 1;
-    // Centralized safe query enforcement
     const safeTags = enforceSafeQueryTags(params.tags);
 
     const cacheKey = this.getCacheKey(safeTags, page, limit, this.config.endpoint);
     const cached = responseCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS && cached.data.length > 0) {
       return {
         posts: cached.data,
         endpointUsed: this.config.endpoint,
@@ -72,39 +73,51 @@ export class DanbooruApiClient {
       };
     }
 
-    // Try primary endpoint first
+    // 1. Try primary endpoint (default Danbooru)
     try {
       const result = await this.executeFetch(this.config.endpoint, safeTags, page, limit, signal);
-      if (result.posts.length > 0 || this.config.endpoint !== 'danbooru') {
+      if (result.posts.length > 0) {
         responseCache.set(cacheKey, { data: result.posts, timestamp: Date.now() });
         return result;
       }
     } catch (err: unknown) {
       if (signal?.aborted) throw err;
-      console.warn(`Primary endpoint [${this.config.endpoint}] failed:`, err);
+      console.warn(`Primary endpoint [${this.config.endpoint}] unavailable:`, err);
     }
 
-    // If primary was Danbooru and it failed or was blocked by Cloudflare, fall back to testbooru
-    if (this.config.endpoint === 'danbooru') {
+    // 2. If primary was Danbooru and was challenged, try testbooru mirror
+    if (this.config.endpoint !== 'testbooru') {
       try {
-        console.info('Switching to Danbooru mirror fallback...');
-        const fallbackResult = await this.executeFetch('testbooru', safeTags, page, limit, signal);
-        return {
-          ...fallbackResult,
-          isFallback: true,
-        };
-      } catch (fallbackErr: unknown) {
-        if (signal?.aborted) throw fallbackErr;
-        console.warn('Fallback endpoint failed:', fallbackErr);
+        const mirrorResult = await this.executeFetch('testbooru', safeTags, page, limit, signal);
+        if (mirrorResult.posts.length > 0) {
+          responseCache.set(cacheKey, { data: mirrorResult.posts, timestamp: Date.now() });
+          return { ...mirrorResult, isFallback: true };
+        }
+      } catch (mirrorErr: unknown) {
+        if (signal?.aborted) throw mirrorErr;
+        console.warn('Testbooru mirror unavailable, failing over to Safebooru...');
       }
     }
 
-    // Return empty safe result rather than crashing
+    // 3. Try Safebooru (open CORS, no Cloudflare challenge blocks)
+    try {
+      const safebooruResult = await this.executeFetch('safebooru', safeTags, page, limit, signal);
+      if (safebooruResult.posts.length > 0) {
+        responseCache.set(cacheKey, { data: safebooruResult.posts, timestamp: Date.now() });
+        return { ...safebooruResult, isFallback: true };
+      }
+    } catch (safeErr: unknown) {
+      if (signal?.aborted) throw safeErr;
+      console.warn('Safebooru endpoint failed:', safeErr);
+    }
+
+    // 4. Offline / Initial Seed Baseline (guarantees feed is always populated with real safe art)
+    console.info('Serving verified safe initial art seed');
     return {
-      posts: [],
-      endpointUsed: this.config.endpoint,
+      posts: INITIAL_SAFE_ART_SEED,
+      endpointUsed: 'seed-catalog',
       isFallback: true,
-      totalFetched: 0,
+      totalFetched: INITIAL_SAFE_ART_SEED.length,
     };
   }
 
@@ -131,15 +144,19 @@ export class DanbooruApiClient {
       url.searchParams.set('s', 'post');
       url.searchParams.set('q', 'index');
       url.searchParams.set('json', '1');
-      url.searchParams.set('tags', safeTags);
+      // For safebooru, pass tag search (omit 'rating:g' prefix as Safebooru only indexes safe posts)
+      const safebooruTags = safeTags.replace(/rating:(g|general|safe)\s*/i, '').trim();
+      if (safebooruTags) {
+        url.searchParams.set('tags', safebooruTags);
+      }
       url.searchParams.set('limit', limit.toString());
-      url.searchParams.set('pid', (typeof page === 'number' ? page - 1 : 0).toString());
+      const pageIndex = typeof page === 'number' ? Math.max(page - 1, 0) : 0;
+      url.searchParams.set('pid', pageIndex.toString());
     } else {
       url.searchParams.set('tags', safeTags);
       url.searchParams.set('limit', limit.toString());
       url.searchParams.set('page', page.toString());
 
-      // If user provided credentials in settings, attach them
       if (this.config.username && this.config.apiKey) {
         url.searchParams.set('login', this.config.username);
         url.searchParams.set('api_key', this.config.apiKey);
@@ -155,15 +172,20 @@ export class DanbooruApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Danbooru API error ${response.status}: ${response.statusText}`);
+      throw new Error(`Endpoint [${endpoint}] responded with HTTP ${response.status}`);
     }
 
-    const json = await response.json();
+    const text = await response.text();
+    // Guard against HTML error / Cloudflare challenge pages
+    if (text.trim().startsWith('<')) {
+      throw new Error(`Endpoint [${endpoint}] returned HTML challenge or error page`);
+    }
+
+    const json = JSON.parse(text);
     if (!Array.isArray(json)) {
-      throw new Error('Malformed API response: expected array of posts');
+      throw new Error(`Malformed response from [${endpoint}]: expected JSON array`);
     }
 
-    // Centralized safe validation: filter strictly by rating 'g' and normalize
     const safePosts: SafePost[] = [];
     for (const raw of json) {
       if (isPostConfirmedSafe(raw)) {
@@ -177,7 +199,7 @@ export class DanbooruApiClient {
     return {
       posts: safePosts,
       endpointUsed: endpoint,
-      isFallback: false,
+      isFallback: endpoint !== 'danbooru',
       totalFetched: safePosts.length,
     };
   }
@@ -201,7 +223,9 @@ export class DanbooruApiClient {
       });
 
       if (!response.ok) return [];
-      const data = await response.json();
+      const text = await response.text();
+      if (text.trim().startsWith('<')) return [];
+      const data = JSON.parse(text);
       if (!Array.isArray(data)) return [];
 
       return data.map((t: { name: string }) => t.name).filter(Boolean);

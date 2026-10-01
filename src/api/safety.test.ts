@@ -34,8 +34,9 @@ describe('isPostConfirmedSafe', () => {
     is_deleted: false,
   };
 
-  it('accepts valid post with rating "g"', () => {
+  it('accepts valid post with rating "g" or "safe"', () => {
     expect(isPostConfirmedSafe(validBasePost)).toBe(true);
+    expect(isPostConfirmedSafe({ ...validBasePost, rating: 'safe' })).toBe(true);
   });
 
   it('rejects posts with non-safe ratings (s, q, e)', () => {

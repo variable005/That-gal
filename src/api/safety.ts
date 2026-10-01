@@ -17,7 +17,7 @@ export function enforceSafeQueryTags(inputTags?: string): string {
     .filter(token => !/^rating:(s|q|e|sensitive|questionable|explicit)$/i.test(token));
 
   // Ensure rating:g is present
-  const hasRatingG = cleanTokens.some(token => /^rating:(g|general)$/i.test(token));
+  const hasRatingG = cleanTokens.some(token => /^rating:(g|general|safe)$/i.test(token));
   if (!hasRatingG) {
     cleanTokens.unshift('rating:g');
   }
@@ -26,11 +26,11 @@ export function enforceSafeQueryTags(inputTags?: string): string {
 }
 
 /**
- * Validates whether a raw Danbooru post is confirmed safe ('g' rating).
- * Excludes any post with missing or unverified rating, banned posts,
- * deleted posts, or posts without an accessible image asset.
+ * Validates whether a raw post is confirmed safe ('g' or 'safe' rating).
+ * Excludes any post with missing or unverified rating, non-safe ratings,
+ * banned posts, deleted posts, or posts without an accessible image asset.
  */
-export function isPostConfirmedSafe(raw: unknown): raw is RawDanbooruPost & { rating: 'g' } {
+export function isPostConfirmedSafe(raw: unknown): raw is RawDanbooruPost {
   if (!raw || typeof raw !== 'object') {
     return false;
   }
@@ -42,8 +42,12 @@ export function isPostConfirmedSafe(raw: unknown): raw is RawDanbooruPost & { ra
     return false;
   }
 
-  // Strict safe rating check: ONLY 'g' is allowed
-  if (post.rating !== 'g') {
+  // Strict safe rating check:
+  // Danbooru uses 'g' (General safe). Safebooru uses 'safe'.
+  // Non-safe ratings ('s' sensitive, 'q' questionable, 'e' explicit) are rejected.
+  const rawRating = (post.rating || '').toLowerCase();
+  const isSafe = rawRating === 'g' || rawRating === 'safe';
+  if (!isSafe) {
     return false;
   }
 
@@ -57,6 +61,8 @@ export function isPostConfirmedSafe(raw: unknown): raw is RawDanbooruPost & { ra
     post.large_file_url ||
     post.file_url ||
     post.preview_file_url ||
+    post.sample_url ||
+    post.preview_url ||
     (post.media_asset && post.media_asset.variants && post.media_asset.variants.length > 0)
   );
 
@@ -80,11 +86,11 @@ export function normalizeSafePost(raw: RawDanbooruPost): SafePost | null {
   }
 
   // Resolve best image URLs
-  let previewUrl = raw.preview_file_url || '';
-  let largeImageUrl = raw.large_file_url || raw.file_url || '';
-  let imageUrl = raw.file_url || raw.large_file_url || '';
+  let previewUrl = raw.preview_file_url || raw.preview_url || '';
+  let largeImageUrl = raw.large_file_url || raw.sample_url || raw.file_url || '';
+  let imageUrl = raw.file_url || raw.sample_url || raw.large_file_url || '';
 
-  // If media_asset variants are available, pick optimal resolution
+  // If media_asset variants are available (Danbooru format), pick optimal resolution
   if (raw.media_asset?.variants && raw.media_asset.variants.length > 0) {
     const variants = raw.media_asset.variants;
     const v180 = variants.find(v => v.type === '180x180' || v.width <= 200);
@@ -101,20 +107,40 @@ export function normalizeSafePost(raw: RawDanbooruPost): SafePost | null {
   if (!largeImageUrl) largeImageUrl = imageUrl || previewUrl;
   if (!imageUrl) imageUrl = largeImageUrl;
 
-  const width = raw.image_width && raw.image_width > 0 ? raw.image_width : 800;
-  const height = raw.image_height && raw.image_height > 0 ? raw.image_height : 1000;
+  const rawWidth = raw.image_width || raw.width;
+  const rawHeight = raw.image_height || raw.height;
+  const width = rawWidth && rawWidth > 0 ? rawWidth : 800;
+  const height = rawHeight && rawHeight > 0 ? rawHeight : 1000;
   const aspectRatio = width / height;
+
+  const allRawTags = raw.tag_string || raw.tags || '';
+  const allTags = splitTags(allRawTags);
 
   const artistTags = splitTags(raw.tag_string_artist);
   const characterTags = splitTags(raw.tag_string_character);
   const copyrightTags = splitTags(raw.tag_string_copyright);
   const generalTags = splitTags(raw.tag_string_general);
   const metaTags = splitTags(raw.tag_string_meta);
-  const allTags = splitTags(raw.tag_string);
 
-  const primaryArtist = artistTags.length > 0 ? artistTags[0].replace(/_/g, ' ') : 'Unknown Artist';
-  const primaryCharacter = characterTags.length > 0 ? characterTags[0].replace(/_/g, ' ') : null;
-  const primaryFranchise = copyrightTags.length > 0 ? copyrightTags[0].replace(/_/g, ' ') : null;
+  // If artist is not split by tag category (e.g. from Safebooru), derive reasonable fallback
+  let primaryArtist = 'Unknown Artist';
+  if (artistTags.length > 0) {
+    primaryArtist = artistTags[0].replace(/_/g, ' ');
+  } else if (allTags.length > 0) {
+    primaryArtist = allTags[0].replace(/_/g, ' ');
+  }
+
+  const primaryCharacter = characterTags.length > 0 
+    ? characterTags[0].replace(/_/g, ' ') 
+    : allTags.find(t => t.includes('_('))?.replace(/_/g, ' ') || null;
+
+  const primaryFranchise = copyrightTags.length > 0 
+    ? copyrightTags[0].replace(/_/g, ' ') 
+    : null;
+
+  const postUrl = raw.tags
+    ? `https://safebooru.org/index.php?page=post&s=view&id=${raw.id}`
+    : `https://danbooru.donmai.us/posts/${raw.id}`;
 
   return {
     id: raw.id,
@@ -126,15 +152,15 @@ export function normalizeSafePost(raw: RawDanbooruPost): SafePost | null {
     height,
     aspectRatio,
     sourceUrl: raw.source || null,
-    danbooruPostUrl: `https://danbooru.donmai.us/posts/${raw.id}`,
+    danbooruPostUrl: postUrl,
     imageUrl,
     previewUrl,
     largeImageUrl,
     allTags,
-    artistTags,
+    artistTags: artistTags.length > 0 ? artistTags : allTags.slice(0, 1),
     characterTags,
     copyrightTags,
-    generalTags,
+    generalTags: generalTags.length > 0 ? generalTags : allTags.slice(1, 10),
     metaTags,
     primaryArtist,
     primaryCharacter,
