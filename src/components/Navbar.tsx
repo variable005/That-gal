@@ -1,12 +1,12 @@
 import React from 'react';
-import { Compass, Bookmark, Sparkles, Settings, Search, Film } from 'lucide-react';
+import { Film, LayoutGrid, Bookmark, Sliders, Settings, Search } from 'lucide-react';
 
-export type MainTab = 'discovery' | 'watchlist' | 'taste' | 'settings';
+export type MainTab = 'theater' | 'stream' | 'vault' | 'taste' | 'settings';
 
 interface NavbarProps {
   activeTab: MainTab;
   onSelectTab: (tab: MainTab) => void;
-  watchlistCount: number;
+  vaultCount: number;
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }
@@ -14,7 +14,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onSelectTab,
-  watchlistCount,
+  vaultCount,
   searchQuery,
   onSearchChange,
 }) => {
@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand & Editorial Title */}
         <div 
           className="flex items-center gap-3 cursor-pointer shrink-0" 
-          onClick={() => onSelectTab('discovery')}
+          onClick={() => onSelectTab('theater')}
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-200 flex items-center justify-center text-zinc-950 shadow-md">
             <Film className="w-4 h-4 stroke-[2.5]" />
@@ -40,20 +40,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <p className="text-[10px] text-zinc-400 font-sans hidden sm:block">
-              Visual Anime Discovery
+              Visual Art Discovery
             </p>
           </div>
         </div>
 
         {/* Global Search Bar */}
-        <div className="flex-1 max-w-md mx-2 hidden md:block">
+        <div className="flex-1 max-w-sm mx-2 hidden md:block">
           <div className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search anime, movies, studios (e.g. Frieren, Ghibli)..."
+              placeholder="Search banners, movies, studios..."
               className="w-full bg-zinc-900/80 text-zinc-200 placeholder-zinc-500 text-xs rounded-lg pl-9 pr-4 py-2 border border-zinc-800 focus:outline-none focus:border-zinc-700 transition-colors"
             />
           </div>
@@ -62,30 +62,45 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Primary Navigation Tabs */}
         <nav className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
-            onClick={() => onSelectTab('discovery')}
+            onClick={() => onSelectTab('theater')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'discovery'
+              activeTab === 'theater'
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
+            title="Full-Bleed Panoramic Theater"
           >
-            <Compass className="w-3.5 h-3.5" />
-            <span>Discover</span>
+            <Film className="w-3.5 h-3.5" />
+            <span>Theater</span>
           </button>
 
           <button
-            onClick={() => onSelectTab('watchlist')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all relative ${
-              activeTab === 'watchlist'
+            onClick={() => onSelectTab('stream')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'stream'
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
+            title="Vertical Banner Artbook Stream"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Stream</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('vault')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all relative ${
+              activeTab === 'vault'
+                ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+            title="Saved Visual Vault"
           >
             <Bookmark className="w-3.5 h-3.5" />
-            <span>Watchlist</span>
-            {watchlistCount > 0 && (
+            <span>Vault</span>
+            {vaultCount > 0 && (
               <span className="ml-1 px-1.5 py-0.2 text-[10px] font-mono rounded-full bg-amber-400/20 text-amber-300 font-semibold border border-amber-400/30">
-                {watchlistCount}
+                {vaultCount}
               </span>
             )}
           </button>
@@ -97,9 +112,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
+            title="Aesthetic Taste Knowledge Base"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Your Taste</span>
+            <Sliders className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Taste</span>
           </button>
 
           <button
@@ -107,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-all ${
               activeTab === 'settings' ? 'text-zinc-100 bg-zinc-800' : ''
             }`}
-            title="Settings & Data"
+            title="Settings & Privacy"
             aria-label="Settings"
           >
             <Settings className="w-3.5 h-3.5" />

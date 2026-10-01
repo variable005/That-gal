@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { Navbar, type MainTab } from './components/Navbar';
-import { DiscoveryFeed } from './components/DiscoveryFeed';
-import { WatchlistView } from './components/WatchlistView';
+import { FilterBar } from './components/FilterBar';
+import { CinematicTheater } from './components/CinematicTheater';
+import { CinematicStream } from './components/CinematicStream';
+import { VaultView } from './components/VaultView';
 import { TasteView } from './components/TasteView';
 import { SettingsView } from './components/SettingsView';
-import { AnimeDetailModal } from './components/AnimeDetailModal';
+import { ArtworkModal } from './components/ArtworkModal';
 import { useAnimeDiscovery } from './hooks/useAnimeDiscovery';
 import { useWatchlist } from './hooks/useWatchlist';
-import type { AnimeMedia, WatchlistStatus } from './api/types';
-import { Sparkles } from 'lucide-react';
+import type { AnimeMedia } from './api/types';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<MainTab>('discovery');
+  const [activeTab, setActiveTab] = useState<MainTab>('theater');
+  const [theaterIndex, setTheaterIndex] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState<AnimeMedia | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -22,7 +25,6 @@ export function App() {
     tasteProfile,
     updateStatus,
     toggleFav,
-    dislike,
     inspect,
     clearAllWatchlist,
     resetAllTaste,
@@ -47,28 +49,22 @@ export function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleToggleWatchlist = (media: AnimeMedia) => {
+  const handleToggleSave = (media: AnimeMedia) => {
     const existing = watchlistMap.get(media.id);
     const title = media.title.english || media.title.romaji;
     if (existing) {
       updateStatus(media, null);
-      showToast(`Removed "${title}" from Watchlist`);
+      showToast(`Removed "${title}" from Vault`);
     } else {
       updateStatus(media, 'plan_to_watch');
-      showToast(`Added "${title}" to Plan to Watch`);
+      showToast(`Archived "${title}" to Visual Vault`);
     }
   };
 
   const handleToggleFavorite = (media: AnimeMedia) => {
     const title = media.title.english || media.title.romaji;
     const isNowFav = toggleFav(media);
-    showToast(isNowFav ? `Favorited "${title}"` : `Removed "${title}" from Favorites`);
-  };
-
-  const handleDislike = (media: AnimeMedia) => {
-    const title = media.title.english || media.title.romaji;
-    dislike(media);
-    showToast(`Adjusted preferences: less like "${title}"`);
+    showToast(isNowFav ? `Favorited aesthetic of "${title}"` : `Removed "${title}" from Favorites`);
   };
 
   const handleInspect = (media: AnimeMedia) => {
@@ -76,17 +72,13 @@ export function App() {
     inspect(media);
   };
 
-  const handleUpdateStatus = (media: AnimeMedia, status: WatchlistStatus | null) => {
-    const title = media.title.english || media.title.romaji;
-    updateStatus(media, status);
-    if (status) {
-      showToast(`Updated "${title}" status`);
-    } else {
-      showToast(`Removed "${title}" from Watchlist`);
-    }
+  const handleSelectFilter = (f: typeof filter) => {
+    setFilter(f);
+    setTheaterIndex(0);
   };
 
-  const selectedEntry = selectedMedia ? watchlistMap.get(selectedMedia.id) : null;
+  const isLiked = (id: number) => Boolean(watchlistMap.get(id)?.isFavorite);
+  const isSaved = (id: number) => watchlistMap.has(id);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-400/20 selection:text-amber-200">
@@ -102,52 +94,100 @@ export function App() {
       <Navbar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        watchlistCount={watchlistEntries.length}
+        vaultCount={watchlistEntries.length}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          setTheaterIndex(0);
+        }}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'discovery' && (
-          <DiscoveryFeed
-            feed={feed}
-            isLoading={isLoading}
-            isLoadingMore={isLoadingMore}
-            activeFilter={filter}
-            onSelectFilter={setFilter}
-            searchQuery={searchQuery}
-            watchlistMap={watchlistMap}
-            onToggleWatchlist={handleToggleWatchlist}
-            onToggleFavorite={handleToggleFavorite}
-            onDislike={handleDislike}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Curated Category Switcher for Theater & Stream */}
+        {(activeTab === 'theater' || activeTab === 'stream') && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <FilterBar activeFilter={filter} onSelectFilter={handleSelectFilter} />
+            
+            <div className="text-right hidden md:block">
+              <span className="text-[11px] font-mono text-zinc-300">
+                {activeTab === 'theater' ? 'Use Arrow Keys / Space to advance' : 'Continuous Panoramic Stream'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1: Cinematic Full-bleed Theater */}
+        {activeTab === 'theater' && (
+          <div>
+            {isLoading && feed.length === 0 ? (
+              <div className="w-full h-[76vh] sm:h-[82vh] rounded-3xl bg-zinc-950 border border-zinc-900 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+                <span className="text-xs font-mono text-zinc-400">Loading high-resolution cinematic artwork...</span>
+              </div>
+            ) : (
+              <CinematicTheater
+                mediaList={feed}
+                currentIndex={theaterIndex}
+                onIndexChange={setTheaterIndex}
+                isLiked={isLiked}
+                isSaved={isSaved}
+                onToggleLike={handleToggleFavorite}
+                onToggleSave={handleToggleSave}
+                onInspect={handleInspect}
+              />
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: Continuous Cinematic Stream */}
+        {activeTab === 'stream' && (
+          <div>
+            {isLoading && feed.length === 0 ? (
+              <div className="w-full py-32 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+                <span className="text-xs font-mono text-zinc-400">Loading cinematic art stream...</span>
+              </div>
+            ) : (
+              <CinematicStream
+                mediaList={feed}
+                isLiked={isLiked}
+                isSaved={isSaved}
+                onToggleLike={handleToggleFavorite}
+                onToggleSave={handleToggleSave}
+                onInspect={handleInspect}
+                onLoadMore={loadMore}
+                hasNextPage={hasNextPage}
+                isLoadingMore={isLoadingMore}
+              />
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: Collected Vault */}
+        {activeTab === 'vault' && (
+          <VaultView
+            savedList={watchlistEntries.map((e) => e.media)}
+            isLiked={isLiked}
+            onToggleLike={handleToggleFavorite}
+            onToggleSave={handleToggleSave}
             onInspect={handleInspect}
-            onLoadMore={loadMore}
-            hasNextPage={hasNextPage}
+            onClearVault={clearAllWatchlist}
+            onGoToDiscovery={() => setActiveTab('theater')}
           />
         )}
 
-        {activeTab === 'watchlist' && (
-          <WatchlistView
-            entries={watchlistEntries}
-            onToggleWatchlist={handleToggleWatchlist}
-            onToggleFavorite={handleToggleFavorite}
-            onDislike={handleDislike}
-            onInspect={handleInspect}
-            onClearWatchlist={clearAllWatchlist}
-            onGoToDiscovery={() => setActiveTab('discovery')}
-          />
-        )}
-
+        {/* TAB 4: Learned Taste Matrix */}
         {activeTab === 'taste' && (
           <TasteView
             tasteProfile={tasteProfile}
             watchlistCount={watchlistEntries.length}
             onResetTaste={resetAllTaste}
-            onGoToDiscovery={() => setActiveTab('discovery')}
+            onGoToDiscovery={() => setActiveTab('theater')}
           />
         )}
 
+        {/* TAB 5: Settings & Backups */}
         {activeTab === 'settings' && (
           <SettingsView
             watchlistEntries={watchlistEntries}
@@ -155,21 +195,21 @@ export function App() {
             onResetTaste={resetAllTaste}
             onImportWatchlist={() => {
               syncState();
-              showToast('Imported watchlist items');
+              showToast('Imported visual vault data');
             }}
           />
         )}
       </main>
 
-      {/* Cinematic Detail & Trailer Modal */}
-      <AnimeDetailModal
+      {/* High-Resolution Artwork Lightbox & Trailer Modal */}
+      <ArtworkModal
         media={selectedMedia}
         isOpen={Boolean(selectedMedia)}
         onClose={() => setSelectedMedia(null)}
-        watchlistStatus={selectedEntry?.status || null}
-        isFavorite={Boolean(selectedEntry?.isFavorite)}
-        onUpdateStatus={handleUpdateStatus}
-        onToggleFavorite={handleToggleFavorite}
+        isLiked={selectedMedia ? isLiked(selectedMedia.id) : false}
+        isSaved={selectedMedia ? isSaved(selectedMedia.id) : false}
+        onToggleLike={handleToggleFavorite}
+        onToggleSave={handleToggleSave}
       />
 
       {/* Editorial Footer */}
