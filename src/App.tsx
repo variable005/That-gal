@@ -103,15 +103,15 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-[1500px] w-full mx-auto px-2 sm:px-4 lg:px-6 py-4">
         {/* Curated Category Switcher for Theater & Stream */}
         {(activeTab === 'theater' || activeTab === 'stream') && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <FilterBar activeFilter={filter} onSelectFilter={handleSelectFilter} />
             
             <div className="text-right hidden md:block">
-              <span className="text-[11px] font-mono text-zinc-300">
-                {activeTab === 'theater' ? 'Use Arrow Keys / Space to advance' : 'Continuous Panoramic Stream'}
+              <span className="text-[10px] font-mono text-zinc-400">
+                {activeTab === 'theater' ? 'Navigate: ← / → or Space' : 'Continuous Panoramic Stream'}
               </span>
             </div>
           </div>

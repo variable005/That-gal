@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Bookmark, ChevronLeft, ChevronRight, Play, Maximize2, Sparkles, Star } from 'lucide-react';
+import { Heart, Bookmark, ChevronLeft, ChevronRight, Play, Maximize2 } from 'lucide-react';
 import type { AnimeMedia } from '../api/types';
 
 interface CinematicTheaterProps {
@@ -24,18 +24,19 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
   onInspect,
 }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'banner' | 'poster'>('banner');
   const current = mediaList[currentIndex];
 
   useEffect(() => {
     setIsImageLoaded(false);
-  }, [currentIndex]);
+  }, [currentIndex, viewMode]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.key === 'ArrowRight' || e.key === 'KeyD' || e.key === ' ' && !e.shiftKey) {
+      if (e.key === 'ArrowRight' || e.key === 'KeyD' || (e.key === ' ' && !e.shiftKey)) {
         e.preventDefault();
         if (currentIndex < mediaList.length - 1) onIndexChange(currentIndex + 1);
       } else if (e.key === 'ArrowLeft' || e.key === 'KeyA') {
@@ -45,6 +46,8 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
         onToggleLike(current);
       } else if (e.key === 'KeyS' && current) {
         onToggleSave(current);
+      } else if (e.key === 'KeyV') {
+        setViewMode((prev) => (prev === 'banner' ? 'poster' : 'banner'));
       }
     };
 
@@ -54,8 +57,8 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
 
   if (!current) {
     return (
-      <div className="w-full h-[75vh] flex items-center justify-center bg-zinc-950 rounded-2xl border border-zinc-900">
-        <span className="text-xs text-zinc-500 font-mono">Loading cinematic artwork...</span>
+      <div className="w-full h-[80vh] flex items-center justify-center bg-zinc-950 rounded-2xl border border-zinc-900">
+        <span className="text-[11px] text-zinc-500 font-mono">Loading cinematic artwork...</span>
       </div>
     );
   }
@@ -64,72 +67,96 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
   const liked = isLiked(current.id);
   const saved = isSaved(current.id);
   const ambientColor = current.coverImage.color || '#3F3F46';
-  const displayImage = current.bannerImage || current.coverImage.extraLarge;
+  
+  // High quality artwork selection
+  const banner = current.bannerImage;
+  const poster = current.coverImage.extraLarge;
+  const displayImage = viewMode === 'poster' || !banner ? poster : banner;
   const hasTrailer = current.trailer?.id && current.trailer.site === 'youtube';
 
+  const metaString = [
+    current.studios[0],
+    current.seasonYear,
+    current.format,
+    current.averageScore ? `${(current.averageScore / 10).toFixed(1)}/10` : null,
+  ].filter(Boolean).join(' • ');
+
   return (
-    <div className="relative w-full h-[76vh] sm:h-[82vh] rounded-3xl overflow-hidden bg-zinc-950 border border-zinc-800/80 shadow-2xl flex flex-col justify-between select-none">
+    <div className="relative w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/80 shadow-2xl flex flex-col justify-between select-none">
       
-      {/* Background Ambient Color Tint */}
+      {/* Background Ambient Glow (Extremely subtle, behind artwork) */}
       <div
-        className="absolute inset-0 opacity-25 filter blur-3xl transition-colors duration-1000 pointer-events-none"
+        className="absolute inset-0 opacity-15 filter blur-3xl transition-colors duration-1000 pointer-events-none"
         style={{ backgroundColor: ambientColor }}
       />
 
-      {/* Primary Panoramic Banner Artwork */}
-      <div className="absolute inset-0 overflow-hidden">
+      {/* Main Full-Quality Image Canvas */}
+      <div 
+        className={`relative w-full overflow-hidden bg-zinc-950 flex items-center justify-center transition-all ${
+          viewMode === 'poster' 
+            ? 'h-[75vh] sm:h-[84vh]' 
+            : 'h-[65vh] sm:h-[78vh] lg:h-[84vh]'
+        }`}
+      >
         {!isImageLoaded && (
-          <div className="absolute inset-0 bg-zinc-950 animate-pulse" />
+          <div className="absolute inset-0 bg-zinc-950/80 animate-pulse" />
         )}
+        
         <img
-          key={displayImage}
+          key={`${current.id}-${viewMode}`}
           src={displayImage}
           alt={title}
           onLoad={() => setIsImageLoaded(true)}
-          className={`w-full h-full object-cover object-center transition-all duration-700 ${
-            isImageLoaded ? 'opacity-90 scale-100' : 'opacity-0 scale-105'
-          }`}
+          className={`w-full h-full object-center transition-opacity duration-500 ${
+            viewMode === 'poster' ? 'object-contain' : 'object-cover'
+          } ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
         />
 
-        {/* Cinematic Vignette & Gradients (Top and Bottom) */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/70 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-transparent to-zinc-950/50 pointer-events-none" />
+        {/* Minimal Bottom Shadow strictly for small mono font legibility - leaves 90% of image 100% untouched */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
       </div>
 
-      {/* Top Bar: Progress & Counter */}
-      <div className="relative z-20 p-6 flex items-center justify-between pointer-events-auto">
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-md bg-zinc-950/80 backdrop-blur-md text-[11px] font-mono text-zinc-300 border border-zinc-800">
-            {currentIndex + 1} / {mediaList.length}
-          </span>
-          {current.recommendationReason && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-zinc-950/80 backdrop-blur-md text-[11px] font-mono text-amber-300 border border-zinc-800">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>{current.recommendationReason}</span>
-            </span>
-          )}
+      {/* Top Bar: Minimal Index Counter & View Mode Switcher */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-auto">
+        <div className="font-mono text-[10px] text-zinc-400 bg-zinc-950/70 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-800/80">
+          <span>{String(currentIndex + 1).padStart(2, '0')} / {String(mediaList.length).padStart(2, '0')}</span>
         </div>
 
-        {/* Format & Studio Badge */}
-        <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-          <span className="px-2 py-0.5 rounded bg-zinc-900/90 backdrop-blur-md border border-zinc-800">
-            {current.format}
-          </span>
-          <span className="hidden sm:inline text-zinc-300">
-            {current.studios[0] || 'Official'}
-          </span>
-        </div>
+        {banner && (
+          <div className="flex items-center gap-1 bg-zinc-950/70 backdrop-blur-md p-0.5 rounded-md border border-zinc-800/80 font-mono text-[10px]">
+            <button
+              onClick={() => setViewMode('banner')}
+              className={`px-2 py-0.5 rounded transition-colors ${
+                viewMode === 'banner'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              BANNER
+            </button>
+            <button
+              onClick={() => setViewMode('poster')}
+              className={`px-2 py-0.5 rounded transition-colors ${
+                viewMode === 'poster'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              POSTER
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Center Left/Right Arrow Navigators */}
-      <div className="absolute inset-y-0 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+      <div className="absolute inset-y-0 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
         <button
           onClick={() => {
             if (currentIndex > 0) onIndexChange(currentIndex - 1);
           }}
           disabled={currentIndex === 0}
-          className="p-3 rounded-full bg-zinc-950/70 hover:bg-zinc-900 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800 disabled:opacity-20 pointer-events-auto transition-all shadow-xl"
-          title="Previous Artwork (Left Arrow)"
+          className="p-2.5 rounded-full bg-zinc-950/60 hover:bg-zinc-900/90 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 disabled:opacity-0 pointer-events-auto transition-all shadow-lg"
+          title="Previous (Left Arrow)"
           aria-label="Previous Artwork"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -140,102 +167,83 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
             if (currentIndex < mediaList.length - 1) onIndexChange(currentIndex + 1);
           }}
           disabled={currentIndex === mediaList.length - 1}
-          className="p-3 rounded-full bg-zinc-950/70 hover:bg-zinc-900 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800 disabled:opacity-20 pointer-events-auto transition-all shadow-xl"
-          title="Next Artwork (Right Arrow or Space)"
+          className="p-2.5 rounded-full bg-zinc-950/60 hover:bg-zinc-900/90 backdrop-blur-md text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 disabled:opacity-0 pointer-events-auto transition-all shadow-lg"
+          title="Next (Right Arrow or Space)"
           aria-label="Next Artwork"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Bottom Cinematic Control Dock */}
-      <div className="relative z-20 p-6 sm:p-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pointer-events-auto">
+      {/* Bottom Area: Small Mono Font in Left Corner + Subtle Micro-Buttons in Right Corner */}
+      <div className="absolute bottom-4 left-4 right-4 z-20 flex items-end justify-between gap-4 pointer-events-none">
         
-        {/* Left: Title & Aesthetic Summary */}
-        <div className="max-w-2xl space-y-2">
-          <div className="flex items-center gap-2 text-xs">
-            {current.averageScore && (
-              <span className="flex items-center gap-1 font-mono text-amber-400 font-medium">
-                <Star className="w-3.5 h-3.5 fill-current" />
-                {(current.averageScore / 10).toFixed(1)}
-              </span>
-            )}
-            <span className="text-zinc-500">•</span>
-            <span className="text-zinc-400 font-sans">
-              {current.genres.slice(0, 3).join(' / ')}
-            </span>
-          </div>
-
-          <h1
-            className="text-2xl sm:text-4xl lg:text-5xl font-serif font-medium text-zinc-100 leading-tight tracking-tight drop-shadow-md cursor-pointer hover:text-amber-200 transition-colors"
+        {/* Left Corner: Clean Small Mono Font as Requested */}
+        <div className="pointer-events-auto space-y-0.5 text-left max-w-lg">
+          <h2
             onClick={() => onInspect(current)}
+            className="font-mono text-xs sm:text-sm font-medium text-zinc-100 tracking-tight cursor-pointer hover:text-amber-300 transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
           >
             {title}
-          </h1>
-
-          {current.description && (
-            <p className="text-xs sm:text-sm text-zinc-300 line-clamp-2 max-w-xl font-sans leading-relaxed drop-shadow">
-              {current.description}
-            </p>
-          )}
+          </h2>
+          <p className="font-mono text-[10px] sm:text-[11px] text-zinc-400 tracking-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+            {metaString}
+          </p>
         </div>
 
-        {/* Right: Primary Reaction Bar */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Right Corner: Minimal Micro-Control Icons */}
+        <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
           {/* Like */}
           <button
             onClick={() => onToggleLike(current)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-medium backdrop-blur-md transition-all shadow-lg ${
+            className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
               liked
-                ? 'bg-rose-500/25 text-rose-300 border-rose-500/40 shadow-rose-950/50'
-                : 'bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-rose-300 border-zinc-800'
+                ? 'bg-rose-500/30 text-rose-300 border-rose-500/50'
+                : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-rose-300 border-zinc-800/80'
             }`}
-            title="Like this visual style (L)"
+            title="Like (L)"
           >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-current text-rose-400' : ''}`} />
-            <span>{liked ? 'Liked' : 'Like'}</span>
+            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current text-rose-400' : ''}`} />
           </button>
 
-          {/* Save to Collection */}
+          {/* Collect */}
           <button
             onClick={() => onToggleSave(current)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-medium backdrop-blur-md transition-all shadow-lg ${
+            className={`p-2 rounded-lg border backdrop-blur-md transition-all ${
               saved
-                ? 'bg-amber-500/25 text-amber-300 border-amber-500/40 shadow-amber-950/50'
-                : 'bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-amber-300 border-zinc-800'
+                ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
+                : 'bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-amber-300 border-zinc-800/80'
             }`}
-            title="Collect to Visual Vault (S)"
+            title="Collect to Vault (S)"
           >
-            <Bookmark className={`w-4 h-4 ${saved ? 'fill-current text-amber-400' : ''}`} />
-            <span>{saved ? 'Collected' : 'Collect'}</span>
+            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-current text-amber-400' : ''}`} />
           </button>
 
-          {/* Inspect / Trailer */}
+          {/* Trailer */}
           {hasTrailer && (
             <button
               onClick={() => onInspect(current)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-950/80 hover:bg-zinc-900 text-zinc-200 border border-zinc-800 text-xs font-medium backdrop-blur-md transition-all shadow-lg"
-              title="Watch Official PV"
+              className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
+              title="Official Trailer"
             >
-              <Play className="w-4 h-4 fill-current text-amber-400" />
-              <span className="hidden sm:inline">Trailer</span>
+              <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
             </button>
           )}
 
           {/* Full Lightbox */}
           <button
             onClick={() => onInspect(current)}
-            className="p-2.5 rounded-xl bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800 backdrop-blur-md transition-colors shadow-lg"
-            title="Inspect Full Artwork"
+            className="p-2 rounded-lg bg-zinc-950/70 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800/80 backdrop-blur-md transition-all"
+            title="Inspect Full Image"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
       </div>
 
-      {/* Filmstrip Mini-Thumbnails Dock at the bottom */}
-      <div className="relative z-20 px-6 pb-4 overflow-x-auto scrollbar-none flex items-center gap-2 pointer-events-auto">
+      {/* Sleek Filmstrip Dock below the artwork */}
+      <div className="px-4 py-2 bg-zinc-950 border-t border-zinc-900 flex items-center gap-2 overflow-x-auto scrollbar-none">
         {mediaList.map((m, idx) => {
           const isSelected = idx === currentIndex;
           const thumb = m.bannerImage || m.coverImage.large;
@@ -243,10 +251,10 @@ export const CinematicTheater: React.FC<CinematicTheaterProps> = ({
             <button
               key={m.id}
               onClick={() => onIndexChange(idx)}
-              className={`relative h-12 w-20 rounded-md overflow-hidden shrink-0 border transition-all duration-200 ${
+              className={`relative h-10 w-16 sm:w-20 rounded overflow-hidden shrink-0 border transition-all duration-150 ${
                 isSelected
-                  ? 'border-amber-400 scale-105 shadow-md opacity-100'
-                  : 'border-zinc-800/80 opacity-40 hover:opacity-80'
+                  ? 'border-amber-400 opacity-100 scale-105'
+                  : 'border-zinc-800/60 opacity-40 hover:opacity-80'
               }`}
               title={m.title.english || m.title.romaji}
             >
